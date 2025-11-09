@@ -155,10 +155,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const newestDate = dates[0]
       ? new Date(dates[0]).toISOString().split("T")[0]
       : null;
-    const oldestDate =
-      dates.length > 0
-        ? new Date(dates[dates.length - 1]).toISOString().split("T")[0]
-        : null;
+    const lastDate = dates[dates.length - 1];
+    const oldestDate = lastDate !== undefined
+      ? new Date(lastDate).toISOString().split("T")[0]
+      : null;
 
     // 1. Total Compensation Distribution (Bar Chart)
     const distributionData: Record<string, number> = {};
