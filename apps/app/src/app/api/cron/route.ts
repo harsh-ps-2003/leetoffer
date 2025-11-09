@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       totalOffers: number;
       newOffers: number;
       outputPath: string;
-    } | void;
+    } | undefined;
     return NextResponse.json({
       success: true,
       message: "Data refreshed successfully",

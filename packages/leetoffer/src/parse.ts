@@ -66,7 +66,7 @@ async function sleep(ms: number): Promise<void> {
 
 export async function parsePost(
   post: LeetCodePost,
-  retryCount: number = 0,
+  retryCount = 0,
 ): Promise<ParsedOffer[] | null> {
   const inputText = `${post.title}\n---\n${post.content}`;
   const prompt = PARSING_PROMPT.replace("{leetcode_post}", inputText);
@@ -96,11 +96,12 @@ export async function parsePost(
       return null;
     }
     return validOffers;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle rate limiting (429 errors)
-    if (error.status === 429) {
-      const retryDelay = error.errorDetails?.find(
-        (detail: any) =>
+    const apiError = error as { status?: number; errorDetails?: Array<{ "@type"?: string; retryDelay?: string }> };
+    if (apiError.status === 429) {
+      const retryDelay = apiError.errorDetails?.find(
+        (detail) =>
           detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
       )?.retryDelay;
 
@@ -109,8 +110,8 @@ export async function parsePost(
         : Math.pow(2, retryCount) * 2; // Exponential backoff: 2s, 4s, 8s, etc.
 
       // Check if it's a quota exceeded error (daily limit)
-      const quotaFailure = error.errorDetails?.find(
-        (detail: any) =>
+      const quotaFailure = apiError.errorDetails?.find(
+        (detail) =>
           detail["@type"] === "type.googleapis.com/google.rpc.QuotaFailure",
       );
 
@@ -136,7 +137,8 @@ export async function parsePost(
     }
 
     // For other errors, just log and return null
-    console.error(`[Post ${post.id}] Error parsing:`, error.message || error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[Post ${post.id}] Error parsing:`, errorMessage);
     return null;
   }
 }

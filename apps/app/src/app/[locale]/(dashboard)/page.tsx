@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "path";
 import { AnimatedText } from "@v1/ui/animated-text";
 import {
