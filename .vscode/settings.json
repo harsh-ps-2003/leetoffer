@@ -1,0 +1,33 @@
+{
+  "editor.defaultFormatter": "biomejs.biome",
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "next/router.d.ts",
+    "next/dist/client/router.d.ts"
+  ],
+  "terminal.integrated.localEchoStyle": "dim",
+  "search.exclude": {
+    "**/node_modules": true
+  },
+  "workbench.colorCustomizations": {
+    "editorLineNumber.foreground": "#00ff00",
+    "activityBar.background": "#3D2A12",
+    "titleBar.activeBackground": "#553A1A",
+    "titleBar.activeForeground": "#FCF9F6"
+  }
+}

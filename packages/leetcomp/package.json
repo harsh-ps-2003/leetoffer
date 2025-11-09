@@ -1,0 +1,26 @@
+{
+  "name": "@v1/leetcomp",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf .turbo node_modules dist",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "dotenv": "^16.4.5",
+    "undici": "^6.19.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.10.4"
+  }
+}
