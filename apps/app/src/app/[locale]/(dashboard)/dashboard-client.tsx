@@ -291,11 +291,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-4">
       {/* Info Banner */}
       {chartData.newestDate && chartData.oldestDate && (
-        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-4 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3 text-center">
+          <p className="text-xs text-muted-foreground">
             Based on {initialData.length} offers parsed between{" "}
             {chartData.oldestDate} and {chartData.newestDate}
           </p>
@@ -303,13 +303,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       )}
 
       {/* Chart Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Total Compensation Distribution */}
-        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-4">
-          <h3 className="mb-3 text-base font-semibold">
+        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3">
+          <h3 className="mb-2 text-sm font-semibold">
             Total Compensation Distribution
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart
               data={chartData.distributionChart}
               margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
@@ -345,11 +345,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </div>
 
         {/* Total Compensation by Experience Level - Box Plot */}
-        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-4">
-          <h3 className="mb-3 text-base font-semibold">
+        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3">
+          <h3 className="mb-2 text-sm font-semibold">
             Total Compensation by Seniority
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart
               data={chartData.experienceBoxPlot}
               margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
@@ -398,11 +398,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </div>
 
         {/* Number of Offers by Company */}
-        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-4">
-          <h3 className="mb-3 text-base font-semibold">
+        <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3">
+          <h3 className="mb-2 text-sm font-semibold">
             Number of Offers by Company
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart
               data={chartData.companyCounts}
               layout="vertical"
@@ -448,11 +448,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
         {/* Compensation Trends Over Time */}
         {chartData.trendChart.length > 0 && (
-          <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-4 md:col-span-2 lg:col-span-3">
-            <h3 className="mb-3 text-base font-semibold">
+          <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3 md:col-span-2 lg:col-span-3">
+            <h3 className="mb-2 text-sm font-semibold">
               Compensation Trends Over Time (Last 12 Months)
             </h3>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={180}>
               <LineChart
                 data={chartData.trendChart}
                 margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
