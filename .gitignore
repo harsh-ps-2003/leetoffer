@@ -62,5 +62,4 @@ tailwind.css
 
 # LeetCode compensation data (generated)
 apps/app/public/parsed_comps.json
-apps/app/public/.leetcomp_metadata.json
-packages/leetcomp/dist/
+apps/app/public/.leetoffer_metadata.json

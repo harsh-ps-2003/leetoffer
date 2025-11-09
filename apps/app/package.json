@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
+    "prebuild": "cd ../../packages/leetoffer && bun run build",
     "build": "next build",
     "clean": "git clean -xdf .next .turbo node_modules",
     "lint": "biome lint",
