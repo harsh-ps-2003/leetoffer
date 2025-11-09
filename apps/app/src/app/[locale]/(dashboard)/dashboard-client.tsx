@@ -271,13 +271,15 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       companyCounts,
       trendChart,
       newestDate:
-        dates.length > 0
+        dates.length > 0 && dates[0] !== undefined
           ? new Date(dates[0]).toISOString().split("T")[0]
           : null,
-      oldestDate:
-        dates.length > 0
-          ? new Date(dates[dates.length - 1]).toISOString().split("T")[0]
-          : null,
+      oldestDate: (() => {
+        const lastDate = dates[dates.length - 1];
+        return lastDate !== undefined
+          ? new Date(lastDate).toISOString().split("T")[0]
+          : null;
+      })(),
     };
   }, [initialData]);
 
