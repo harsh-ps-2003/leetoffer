@@ -1,23 +1,15 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
 import { PARSING_PROMPT } from "./prompts";
 import type { LeetCodePost } from "./types";
 
-// Lazy initialization - only create model when needed (after dotenv has loaded)
-let model: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
-
-function getModel() {
-  if (!model) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "GEMINI_API_KEY environment variable is required. Please set it in your .env file.",
-      );
-    }
-    const genAI = new GoogleGenerativeAI(apiKey);
-    model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+function getApiKey(): string {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "PERPLEXITY_API_KEY environment variable is required. Please set it in your .env file.",
+    );
   }
-  return model;
+  return apiKey;
 }
 
 const ParsedOfferSchema = z.object({
@@ -72,10 +64,68 @@ export async function parsePost(
   const prompt = PARSING_PROMPT.replace("{leetcode_post}", inputText);
 
   try {
-    const modelInstance = getModel();
-    const result = await modelInstance.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const apiKey = getApiKey();
+    if (!apiKey || apiKey.length < 10) {
+      throw new Error("Invalid API key: API key is missing or too short");
+    }
+    
+    let response: Response;
+    try {
+      response = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar-pro",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.2,
+          max_tokens: 4000,
+        }),
+      });
+    } catch (fetchError) {
+      const fetchErr = fetchError as Error;
+      throw new Error(`Network error: ${fetchErr.message}`);
+    }
+
+    if (!response.ok) {
+      let errorData: any = {};
+      let errorText = "";
+      try {
+        errorText = await response.text();
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || `HTTP ${response.status}` };
+      }
+      const errorMsg = errorData.error?.message || errorData.message || `HTTP ${response.status}: ${errorText.substring(0, 100)}`;
+      throw new Error(errorMsg);
+    }
+
+    let data: any;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      throw new Error(`Failed to parse API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+    
+    // Check if response has the expected structure
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error(`[Post ${post.id}] Unexpected response format:`, JSON.stringify(data).substring(0, 200));
+      return null;
+    }
+    
+    const text = data.choices[0]?.message?.content || "";
+    
+    if (!text) {
+      console.error(`[Post ${post.id}] Empty response from API`);
+      return null;
+    }
 
     const parsedJson = parseJsonMarkdown(text);
 
@@ -97,30 +147,39 @@ export async function parsePost(
     }
     return validOffers;
   } catch (error: unknown) {
+    // Convert error to Error object for consistent handling
+    let errorObj: Error;
+    if (error instanceof Error) {
+      errorObj = error;
+    } else if (typeof error === "object" && error !== null) {
+      const err = error as { message?: string; status?: number; errorDetails?: any };
+      const message = err.message || 
+        err.errorDetails?.error?.message ||
+        err.errorDetails?.message ||
+        JSON.stringify(err).substring(0, 200) ||
+        `Unknown error (status: ${err.status || "unknown"})`;
+      errorObj = new Error(message);
+      (errorObj as any).status = err.status;
+      (errorObj as any).errorDetails = err.errorDetails;
+    } else {
+      errorObj = new Error(String(error));
+    }
+
     // Handle rate limiting (429 errors)
-    const apiError = error as { status?: number; errorDetails?: Array<{ "@type"?: string; retryDelay?: string }> };
-    if (apiError.status === 429) {
-      const retryDelay = apiError.errorDetails?.find(
-        (detail) =>
-          detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo",
-      )?.retryDelay;
+    const status = (errorObj as any).status;
+    if (status === 429) {
+      const delaySeconds = Math.pow(2, retryCount) * 2; // Exponential backoff: 2s, 4s, 8s, etc.
 
-      const delaySeconds = retryDelay
-        ? parseFloat(retryDelay.replace("s", ""))
-        : Math.pow(2, retryCount) * 2; // Exponential backoff: 2s, 4s, 8s, etc.
-
-      // Check if it's a quota exceeded error (daily limit)
-      const quotaFailure = apiError.errorDetails?.find(
-        (detail) =>
-          detail["@type"] === "type.googleapis.com/google.rpc.QuotaFailure",
-      );
-
-      if (quotaFailure && retryCount === 0) {
-        console.warn(`\n⚠️  Quota exceeded! Daily limit reached.`);
-        console.warn(`   The free tier allows 250 requests per day.`);
-        console.warn(`   Please wait 24 hours or upgrade your plan.`);
-        console.warn(`   Stopping processing to avoid further errors.\n`);
-        throw new Error("QUOTA_EXCEEDED");
+      // Check if it's a quota exceeded error
+      const errorDetails = (errorObj as any).errorDetails || {};
+      const errorMessage = errorDetails.error?.message || errorObj.message || "";
+      if (errorMessage.includes("quota") || errorMessage.includes("limit") || errorMessage.includes("rate limit")) {
+        if (retryCount === 0) {
+          console.warn(`\n⚠️  Quota exceeded! Daily limit reached.`);
+          console.warn(`   Please wait or upgrade your plan.`);
+          console.warn(`   Stopping processing to avoid further errors.\n`);
+          throw new Error("QUOTA_EXCEEDED");
+        }
       }
 
       // Retry with exponential backoff (max 3 retries)
@@ -136,9 +195,8 @@ export async function parsePost(
       }
     }
 
-    // For other errors, just log and return null
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[Post ${post.id}] Error parsing:`, errorMessage);
+    // For other errors, log the actual error message
+    console.error(`[Post ${post.id}] Error parsing: ${errorObj.message}`);
     return null;
   }
 }

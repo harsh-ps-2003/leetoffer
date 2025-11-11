@@ -191,25 +191,111 @@ async function saveData(
   if (process.env.GIST_ID && process.env.GITHUB_TOKEN) {
     try {
       console.log(`Saving ${allOffers.length} offers to Gist ${process.env.GIST_ID}...`);
+      
+      // First, verify we can read the Gist (to check if it exists and we have access)
+      console.log(`Verifying Gist access for ID: ${process.env.GIST_ID}`);
+      const readResponse = await fetch(`https://api.github.com/gists/${process.env.GIST_ID}`, {
+        headers: {
+          Authorization: `token ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+      
+      if (!readResponse.ok) {
+        const readError = await readResponse.text();
+        let errorMsg = `Cannot access Gist (read failed): ${readResponse.status}`;
+        try {
+          const errorJson = JSON.parse(readError);
+          errorMsg += ` - ${errorJson.message || readError}`;
+        } catch {
+          errorMsg += ` - ${readError}`;
+        }
+        errorMsg += `\nPlease verify:\n1. Gist ID is correct: ${process.env.GIST_ID}\n2. Token has 'gist' scope enabled\n3. Token belongs to the Gist owner (harsh-ps-2003)`;
+        throw new Error(errorMsg);
+      }
+      
+      const gistData = await readResponse.json();
+      const gistOwner = gistData.owner?.login || 'unknown';
+      console.log(`✅ Gist accessible. Owner: ${gistOwner}, Public: ${gistData.public}`);
+      
+      // Verify token belongs to the Gist owner
+      const userResponse = await fetch("https://api.github.com/user", {
+        headers: {
+          Authorization: `token ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
+      
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        const tokenOwner = userData.login;
+        console.log(`Token belongs to: ${tokenOwner}`);
+        
+        if (tokenOwner !== gistOwner) {
+          throw new Error(`Token owner (${tokenOwner}) does not match Gist owner (${gistOwner}). The token must belong to the Gist owner to update it.`);
+        }
+        
+        // Check token scopes from response headers
+        const scopes = userResponse.headers.get('x-oauth-scopes') || '';
+        console.log(`Token scopes: ${scopes || 'none (check token settings)'}`);
+        
+        if (!scopes.includes('gist')) {
+          throw new Error(`Token is missing 'gist' scope. Current scopes: ${scopes || 'none'}. Please create a new token with 'gist' scope at https://github.com/settings/tokens`);
+        }
+      } else {
+        console.warn(`⚠️  Could not verify token owner (status: ${userResponse.status})`);
+      }
+      
+      // Build files object - preserve existing files and update parsed_comps.json
+      const files: Record<string, { content: string } | null> = {};
+      
+      // Preserve all existing files (set to null to keep them, or update if needed)
+      if (gistData.files) {
+        for (const [filename, fileData] of Object.entries(gistData.files)) {
+          if (filename !== "parsed_comps.json") {
+            // Keep existing files by setting them to null (preserves them)
+            files[filename] = null;
+          }
+        }
+      }
+      
+      // Update parsed_comps.json
+      files["parsed_comps.json"] = {
+        content: JSON.stringify(allOffers, null, 2),
+      };
+      
+      console.log(`Updating Gist with ${Object.keys(files).length} file(s)...`);
+      const patchBody = {
+        files: files,
+      };
+      console.log(`PATCH body keys: ${Object.keys(patchBody.files).join(', ')}`);
+      
       const response = await fetch(`https://api.github.com/gists/${process.env.GIST_ID}`, {
         method: "PATCH",
         headers: {
           Authorization: `token ${process.env.GITHUB_TOKEN}`,
           Accept: "application/vnd.github.v3+json",
           "Content-Type": "application/json",
+          "User-Agent": "leetoffer-script",
         },
-        body: JSON.stringify({
-          files: {
-            "parsed_comps.json": {
-              content: JSON.stringify(allOffers, null, 2),
-            },
-          },
-        }),
+        body: JSON.stringify(patchBody),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        let errorDetails = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorDetails = JSON.stringify(errorJson, null, 2);
+          // Check for specific error messages
+          if (errorJson.message) {
+            console.error(`GitHub API error message: ${errorJson.message}`);
+          }
+        } catch {
+          // Keep as text if not JSON
+        }
+        console.error(`Full error response: ${errorDetails}`);
+        throw new Error(`GitHub API error: ${response.status} - ${errorDetails}`);
       }
 
       console.log(`✅ Successfully saved ${allOffers.length} offers to GitHub Gist`);
@@ -405,9 +491,10 @@ export async function run(): Promise<{
         } else {
           console.log(`  ℹ️  No valid offers found`);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Handle quota exceeded error
-        if (error.message === "QUOTA_EXCEEDED") {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage === "QUOTA_EXCEEDED") {
           console.warn(`\n⚠️  Daily quota exceeded. Stopping processing.`);
           console.warn(
             `   Processed ${processedCount} posts, found ${successCount} with valid offers.`,
@@ -415,8 +502,8 @@ export async function run(): Promise<{
           console.warn(`   Remaining posts will be processed tomorrow.\n`);
           break;
         }
-        // For other errors, continue processing
-        console.warn(`  ⚠️  Error processing post, continuing...`);
+        // For other errors, continue processing (parsePost already logged the error)
+        // Don't log again here to avoid duplicate error messages
       }
     }
   } catch (error: unknown) {

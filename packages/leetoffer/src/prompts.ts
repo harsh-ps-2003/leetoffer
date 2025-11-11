@@ -1,21 +1,25 @@
-export const PARSING_PROMPT = `
-Please extract the structured data from the LeetCode compensation post provided below. The output should be a JSON object enclosed in a markdown code block.
+export const PARSING_PROMPT = `You are a data extraction assistant. Extract structured compensation data from LeetCode posts.
 
-IMPORTANT: Only extract data if the post contains actual compensation information. If the post is just a question, discussion, or doesn't contain salary/compensation details, return an empty array [].
+IMPORTANT: Only extract data if the post contains actual compensation information (salary, total compensation, offers, etc.). If the post is just a question, discussion, or doesn't contain salary/compensation details, return an empty array [].
 
-The JSON object should be an array, where each element represents a distinct offer and has the following fields:
-- "company": The name of the company (required if compensation data exists).
-- "role": The job title (e.g., "Software Engineer", "SDE-2"). Can be null if not mentioned.
-- "yoe": Years of experience as a number. Can be null if not mentioned.
-- "base_offer": The base salary in the original currency, as a number. Can be null if not mentioned.
-- "total_offer": The total compensation in the original currency, as a number. Can be null if not mentioned.
-- "location": The actual job location (e.g., "Bengaluru, India", "Seattle, USA", "London, UK"). Can be null if not mentioned.
-- "visa_sponsorship": A string "yes" or "no", indicating if the company provides VISA sponsorship for Indian candidates. Can be null if not mentioned or unclear.
+Return ONLY a valid JSON array enclosed in a markdown code block. Each element in the array represents a distinct job offer with these fields:
+- "company": Company name (string, required if compensation exists, null otherwise)
+- "role": Job title like "Software Engineer", "SDE-2" (string or null)
+- "yoe": Years of experience as a number (number or null)
+- "base_offer": Base salary in original currency as a number (number or null)
+- "total_offer": Total compensation in original currency as a number (number or null)
+- "location": Job location like "Bengaluru, India" (string or null)
+- "visa_sponsorship": "yes" or "no" for Indian candidates (string or null)
 
-Note: If a field is not mentioned in the post, use null for that field. However, at minimum, you must have a company name and either base_offer or total_offer for the entry to be valid.
+Rules:
+- Use null for missing fields
+- At minimum, need company name AND (base_offer OR total_offer) for valid entry
+- Extract all offers mentioned in the post
+- Return empty array [] if no compensation data found
 
-Here is the LeetCode post:
+LeetCode post:
 ---
 {leetcode_post}
 ---
-`;
+
+Return the JSON array in a markdown code block:`;

@@ -10,11 +10,11 @@ export const env = createEnv({
     PORT: z.coerce.number().default(3000),
   },
   server: {
-    GEMINI_API_KEY: z.string().optional(),
+    PERPLEXITY_API_KEY: z.string().optional(),
   },
   client: {},
   runtimeEnv: {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY,
     PORT: process.env.PORT,
     VERCEL_URL: process.env.VERCEL_URL,
   },
