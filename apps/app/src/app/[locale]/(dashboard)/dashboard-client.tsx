@@ -238,10 +238,17 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
+    // Calculate max value from box plot data for Y-axis domain
+    const maxBoxPlotValue = experienceBoxPlot.reduce((max, item) => {
+      return Math.max(max, item.max || 0);
+    }, 0);
+    const yAxisMax = maxBoxPlotValue > 0 ? Math.ceil(maxBoxPlotValue * 1.2) : 100;
+
     return {
       distributionChart,
       experienceBoxPlot,
       companyCounts,
+      yAxisMax,
       newestDate:
         dates.length > 0 && dates[0] !== undefined
           ? new Date(dates[0]).toISOString().split("T")[0]
@@ -320,10 +327,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Total Compensation by Seniority
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={320}>
             <BarChart
               data={chartData.experienceBoxPlot}
-              margin={{ top: 20, right: 10, left: 10, bottom: 10 }}
+              margin={{ top: 30, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -340,8 +347,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                domain={['auto', 'auto']}
-                padding={{ top: 20 }}
+                domain={[0, chartData.yAxisMax || 150]}
                 label={{
                   value: "Total Compensation (₹ LPA)",
                   angle: -90,
