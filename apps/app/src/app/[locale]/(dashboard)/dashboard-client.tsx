@@ -280,10 +280,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Total Compensation Distribution
           </h3>
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart
               data={chartData.distributionChart}
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -320,10 +320,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Total Compensation by Seniority
           </h3>
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart
               data={chartData.experienceBoxPlot}
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              margin={{ top: 20, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -340,6 +340,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
+                domain={['auto', 'auto']}
+                padding={{ top: 20 }}
                 label={{
                   value: "Total Compensation (₹ LPA)",
                   angle: -90,
@@ -373,11 +375,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Number of Offers by Company
           </h3>
-          <ResponsiveContainer width="100%" height={140}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart
               data={chartData.companyCounts}
               layout="vertical"
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+              margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
