@@ -159,18 +159,18 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       ? new Date(lastDate).toISOString().split("T")[0]
       : null;
 
-    // 1. Total Compensation Distribution (Bar Chart)
+    // 1. Total Compensation Distribution (Horizontal Bar Chart)
     const distributionData: Record<string, number> = {};
     offersWithTotal.forEach((offer) => {
       const totalLPA = (offer.total_offer || 0) / 100000;
       const bucket = Math.floor(totalLPA / 10) * 10;
-      const key = `${bucket}-${bucket + 9}`;
+      const key = `${bucket}-${bucket + 10}`;
       distributionData[key] = (distributionData[key] || 0) + 1;
     });
 
     const distributionChart = Object.entries(distributionData)
       .map(([range, count]) => ({
-        range: range.replace("-", "-") + " LPA",
+        range: range + " LPA",
         count,
       }))
       .sort((a, b) => {
@@ -236,7 +236,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         count: values.length,
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 20); // Show top 20 companies instead of 10
+      .slice(0, 15); // Show top 15 companies
 
     // Calculate max value from box plot data for Y-axis domain
     const maxBoxPlotValue = experienceBoxPlot.reduce((max, item) => {
@@ -288,9 +288,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Total Compensation Distribution
           </h3>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={400}>
             <BarChart
               data={chartData.distributionChart}
+              layout="vertical"
               margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
@@ -298,14 +299,23 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 stroke="hsl(var(--border))"
               />
               <XAxis
-                dataKey="range"
+                type="number"
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                angle={-45}
-                textAnchor="end"
-                height={80}
+                label={{
+                  value: "Count",
+                  position: "insideBottom",
+                  offset: -5,
+                }}
               />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis
+                type="category"
+                dataKey="range"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                width={100}
+                interval={0}
+              />
               <RechartsTooltip
                 contentStyle={{
                   backgroundColor: "transparent",
@@ -314,7 +324,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 }}
                 cursor={{ fill: "transparent" }}
               />
-              <Bar dataKey="count" fill={COLORS.primary} radius={[4, 4, 0, 0]}>
+              <Bar dataKey="count" fill={COLORS.primary} radius={[0, 4, 4, 0]}>
                 {chartData.distributionChart.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS.primary} />
                 ))}
@@ -382,7 +392,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Number of Offers by Company
           </h3>
-          <ResponsiveContainer width="100%" height={700}>
+          <ResponsiveContainer width="100%" height={550}>
             <BarChart
               data={chartData.companyCounts}
               layout="vertical"
