@@ -242,7 +242,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const maxBoxPlotValue = experienceBoxPlot.reduce((max, item) => {
       return Math.max(max, item.max || 0);
     }, 0);
-    const yAxisMax = maxBoxPlotValue > 0 ? Math.ceil(maxBoxPlotValue * 1.2) : 100;
+    // Add 40% padding to ensure all boxes and whiskers are fully visible
+    const yAxisMax = maxBoxPlotValue > 0 ? Math.ceil(maxBoxPlotValue * 1.4) : 100;
 
     return {
       distributionChart,
@@ -327,10 +328,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Total Compensation by Seniority
           </h3>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={420}>
             <BarChart
               data={chartData.experienceBoxPlot}
-              margin={{ top: 30, right: 10, left: 10, bottom: 10 }}
+              margin={{ top: 50, right: 10, left: 10, bottom: 10 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
