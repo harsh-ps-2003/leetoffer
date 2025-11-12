@@ -382,7 +382,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           <h3 className="mb-2 text-sm font-semibold">
             Number of Offers by Company
           </h3>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={chartData.companyCounts}
               layout="vertical"
@@ -406,8 +406,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 type="category"
                 dataKey="company"
                 stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                width={100}
+                fontSize={12}
+                width={120}
               />
               <RechartsTooltip
                 contentStyle={{
