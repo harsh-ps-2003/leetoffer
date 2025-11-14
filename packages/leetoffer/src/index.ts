@@ -96,15 +96,22 @@ async function loadExistingData(): Promise<{
   if (existsSync(outputPath)) {
     try {
       const fileContents = await readFile(outputPath, "utf-8");
-      existingOffers = JSON.parse(fileContents);
-      console.log(`Loaded ${existingOffers.length} existing offers from local file`);
+      const parsed = JSON.parse(fileContents);
+      if (Array.isArray(parsed)) {
+        existingOffers = parsed;
+        console.log(`✅ Loaded ${existingOffers.length} existing offers from local file: ${outputPath}`);
+      } else {
+        console.warn("Local file exists but doesn't contain an array");
+      }
     } catch (error) {
       console.warn("Failed to load existing offers from local file:", error);
     }
+  } else {
+    console.log(`ℹ️  Local file not found: ${outputPath}`);
   }
 
-  // Fallback to Gist if local file is empty or doesn't exist
-  if (existingOffers.length === 0 && process.env.GIST_ID) {
+  // Also try to load from Gist to merge with local data (in case Gist has more recent data)
+  if (process.env.GIST_ID) {
     try {
       // Try API first (works for both public and private with token)
       const headers: HeadersInit = {
@@ -125,23 +132,34 @@ async function loadExistingData(): Promise<{
         const gist = await response.json();
         const file = gist.files["parsed_comps.json"];
         if (file) {
-          existingOffers = JSON.parse(file.content);
-          console.log(`Loaded ${existingOffers.length} existing offers from Gist`);
-        }
+          const gistOffers = JSON.parse(file.content);
+          if (Array.isArray(gistOffers)) {
+            // Merge with existing offers, preferring local if both exist
+            if (gistOffers.length > existingOffers.length) {
+              console.log(`📥 Gist has more offers (${gistOffers.length} vs ${existingOffers.length}). Using Gist data.`);
+              existingOffers = gistOffers;
+            } else if (gistOffers.length > 0) {
+              console.log(`ℹ️  Gist has ${gistOffers.length} offers, local has ${existingOffers.length}. Using local data.`);
+            }
+          }
 
-        // Try to load metadata from Gist too
-        const metadataFile = gist.files[".leetoffer_metadata.json"];
-        if (metadataFile) {
-          const metadata = JSON.parse(metadataFile.content);
-          lastPostId = metadata.lastPostId;
-          lastFetchTime = metadata.lastFetchTime;
-          console.log(`Incremental mode: Last post ID was ${lastPostId}`);
+          // Try to load metadata from Gist too
+          const metadataFile = gist.files[".leetoffer_metadata.json"];
+          if (metadataFile) {
+            const metadata = JSON.parse(metadataFile.content);
+            // Prefer Gist metadata if it's more recent or if we don't have local metadata
+            if (!lastPostId || (metadata.lastFetchTime && metadata.lastFetchTime > (lastFetchTime || 0))) {
+              lastPostId = metadata.lastPostId;
+              lastFetchTime = metadata.lastFetchTime;
+              console.log(`📥 Loaded metadata from Gist: Last post ID = ${lastPostId}`);
+            }
+          }
         }
       } else {
-        console.warn(`Failed to load from Gist API: ${response.status}`);
+        console.warn(`⚠️  Failed to load from Gist API: ${response.status}`);
       }
     } catch (error) {
-      console.warn("Failed to load from Gist:", error);
+      console.warn("⚠️  Failed to load from Gist:", error);
     }
   }
 
@@ -152,11 +170,15 @@ async function loadExistingData(): Promise<{
       const metadata = JSON.parse(metadataContents);
       lastPostId = metadata.lastPostId;
       lastFetchTime = metadata.lastFetchTime;
-      console.log(`Incremental mode: Last post ID was ${lastPostId}`);
+      console.log(`✅ Loaded metadata from local file: Last post ID = ${lastPostId}`);
     } catch (error) {
-      console.warn("Failed to load metadata, will do full fetch:", error);
+      console.warn("⚠️  Failed to load metadata, will do full fetch:", error);
     }
   }
+
+  // Create a set of processed post IDs for quick lookup
+  const uniquePostIds = new Set(existingOffers.map(offer => offer.post_id).filter(Boolean));
+  console.log(`📊 Summary: ${existingOffers.length} existing offers from ${uniquePostIds.size} unique posts`);
 
   return { offers: existingOffers, lastPostId, lastFetchTime };
 }
@@ -425,6 +447,14 @@ export async function run(): Promise<{
   process.on("SIGINT", saveOnExit);
   process.on("SIGTERM", saveOnExit);
 
+  // Create a set of post IDs that we've already fully processed
+  // (posts where all offers are already in existingOffers)
+  const processedPostIds = new Set(
+    existingOffers
+      .map(offer => offer.post_id)
+      .filter((id): id is string => !!id)
+  );
+
   // Fetch new posts (will stop when it reaches lastPostId if in incremental mode)
   try {
     for await (const post of getLatestPosts(
@@ -443,9 +473,17 @@ export async function run(): Promise<{
         break;
       }
 
+      // Skip if we've already processed this post (all its offers are in existingOffers)
+      // Note: getLatestPosts already stops at lastPostId, but this is an extra safety check
+      if (processedPostIds.has(post.id)) {
+        console.log(`⏭️  Skipping post ${post.id} - already fully processed`);
+        lastFetchedPostId = post.id; // Update lastFetchedPostId even if we skip
+        continue;
+      }
+
       processedCount++;
       lastFetchedPostId = post.id;
-      console.log(`[${processedCount}] Parsing "${post.title}"`);
+      console.log(`[${processedCount}] Parsing "${post.title}" (ID: ${post.id})`);
 
       if (post.vote_count < 0) {
         console.log(`  ⚠️  Skipping due to negative votes.`);
@@ -519,20 +557,32 @@ export async function run(): Promise<{
   // Merge new offers with existing ones
   // Always save data even if there were errors
   // Create a Set of existing offer keys to avoid duplicates
+  // Key format: company-role-total_offer-post_id (handles multiple offers from same post)
   const existingOfferKeys = new Set(
     existingOffers.map(
       (offer) =>
-        `${offer.company}-${offer.role}-${offer.total_offer}-${offer.post_id}`,
+        `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`,
     ),
   );
 
+  console.log(`\n🔍 Deduplicating offers...`);
+  console.log(`   Existing offers: ${existingOffers.length}`);
+  console.log(`   New offers before deduplication: ${newParsedOffers.length}`);
+
   // Filter out duplicates from new offers
   const uniqueNewOffers = newParsedOffers.filter((offer) => {
-    const key = `${offer.company}-${offer.role}-${offer.total_offer}-${offer.post_id}`;
-    return !existingOfferKeys.has(key);
+    const key = `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`;
+    const isDuplicate = existingOfferKeys.has(key);
+    if (isDuplicate) {
+      console.log(`   ⏭️  Skipping duplicate: ${offer.company} - ${offer.role} - ${offer.total_offer}LPA (post ${offer.post_id})`);
+    }
+    return !isDuplicate;
   });
 
   const allOffers = [...existingOffers, ...uniqueNewOffers];
+  
+  console.log(`   Unique new offers: ${uniqueNewOffers.length}`);
+  console.log(`   Total offers after merge: ${allOffers.length}`);
 
   // Disable save-on-exit handler since we're saving normally
   shouldSaveOnExit = false;
