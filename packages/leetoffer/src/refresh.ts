@@ -72,13 +72,22 @@ export async function* getLatestPosts(
         break;
       }
 
-      // If we have a lastPostId and we've reached it, stop fetching
-      if (lastPostId && post.node.id === lastPostId) {
-        console.log(
-          `Reached last known post ID: ${lastPostId}. Stopping incremental fetch.`,
-        );
-        foundLastPost = true;
-        break;
+      // If we have a lastPostId, check if we've reached or passed it
+      // Posts are fetched in descending order (newest first), so when we encounter
+      // a post with ID <= lastPostId, we've reached posts we've already processed
+      if (lastPostId) {
+        const currentPostId = post.node.id;
+        const lastPostIdNum = parseInt(lastPostId, 10);
+        const currentPostIdNum = parseInt(currentPostId, 10);
+        
+        // If current post ID is less than or equal to lastPostId, we've caught up
+        if (currentPostIdNum <= lastPostIdNum) {
+          console.log(
+            `Reached last known post ID: ${lastPostId} (current: ${currentPostId}). Stopping incremental fetch.`,
+          );
+          foundLastPost = true;
+          break;
+        }
       }
 
       try {

@@ -391,14 +391,34 @@ export async function run(): Promise<{
   // Load existing data for incremental updates
   const {
     offers: existingOffers,
-    lastPostId,
+    lastPostId: metadataLastPostId,
     lastFetchTime,
   } = await loadExistingData();
-  const isIncremental = !!lastPostId;
+  
+  // Find the highest post ID from existing offers to ensure we start from the actual newest post
+  // This is more reliable than using metadata's lastPostId, which might be outdated
+  let actualLastPostId: string | undefined = metadataLastPostId;
+  if (existingOffers.length > 0) {
+    const postIds = existingOffers
+      .map(offer => offer.post_id)
+      .filter((id): id is string => !!id)
+      .map(id => parseInt(id, 10))
+      .filter(id => !isNaN(id));
+    
+    if (postIds.length > 0) {
+      const highestPostId = Math.max(...postIds).toString();
+      if (!actualLastPostId || parseInt(highestPostId, 10) > parseInt(actualLastPostId, 10)) {
+        actualLastPostId = highestPostId;
+        console.log(`📊 Using highest post ID from existing offers: ${actualLastPostId} (metadata had: ${metadataLastPostId || 'none'})`);
+      }
+    }
+  }
+  
+  const isIncremental = !!actualLastPostId;
 
   if (isIncremental) {
     console.log(
-      `🔄 Incremental update mode: Fetching new posts since last run`,
+      `🔄 Incremental update mode: Fetching new posts since post ID ${actualLastPostId}`,
     );
   } else {
     console.log(`🆕 Full fetch mode: Fetching all posts`);
@@ -455,10 +475,10 @@ export async function run(): Promise<{
       .filter((id): id is string => !!id)
   );
 
-  // Fetch new posts (will stop when it reaches lastPostId if in incremental mode)
+  // Fetch new posts (will stop when it reaches actualLastPostId if in incremental mode)
   try {
     for await (const post of getLatestPosts(
-      lastPostId,
+      actualLastPostId,
       isIncremental ? 500 : 2000,
     )) {
       // Check quota before making API call

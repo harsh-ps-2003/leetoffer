@@ -3599,5 +3599,44 @@
     "post_title": "Apple | ICT4 | Hyderabad",
     "post_date": "2025-02-04",
     "post_timestamp": 1738656106000
+  },
+  {
+    "company": "Google",
+    "role": "Software Engineer L3",
+    "yoe": null,
+    "base_offer": 2300000,
+    "total_offer": null,
+    "location": "Bangalore, India",
+    "visa_sponsorship": null,
+    "post_id": "6485600",
+    "post_title": "Compiled list of Google India L3 comp , 2024",
+    "post_date": "2025-03-02",
+    "post_timestamp": 1740911853000
+  },
+  {
+    "company": "G-P",
+    "role": "Senior Software Engineer",
+    "yoe": null,
+    "base_offer": 6000000,
+    "total_offer": null,
+    "location": "Remote",
+    "visa_sponsorship": null,
+    "post_id": "6478506",
+    "post_title": "🔥 Frontend Devs: Which Companies Pay 50 LPA+ for 3.8+ YOE?",
+    "post_date": "2025-02-28",
+    "post_timestamp": 1740767132000
+  },
+  {
+    "company": "Multiplier",
+    "role": "Lead Software engineer",
+    "yoe": null,
+    "base_offer": 6200000,
+    "total_offer": null,
+    "location": null,
+    "visa_sponsorship": null,
+    "post_id": "6478506",
+    "post_title": "🔥 Frontend Devs: Which Companies Pay 50 LPA+ for 3.8+ YOE?",
+    "post_date": "2025-02-28",
+    "post_timestamp": 1740767132000
   }
 ]
