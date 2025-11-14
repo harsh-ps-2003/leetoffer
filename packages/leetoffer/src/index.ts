@@ -426,10 +426,12 @@ export async function run(): Promise<{
 
   const newParsedOffers: ParsedOffer[] = [];
   let processedCount = 0;
+  let newPostsProcessed = 0; // Track how many NEW posts we've actually processed (not skipped)
   let successCount = 0;
   let lastFetchedPostId: string | undefined;
   let apiCallCount = 0;
   const MAX_DAILY_API_CALLS = 240; // Leave some buffer below the 250 limit
+  const MAX_NEW_OFFERS = 100; // Add up to 100 new offers per run (not posts, but actual offers)
   
   // Store paths for cleanup on interrupt
   const { outputPath, metadataPath } = getOutputPaths();
@@ -475,12 +477,15 @@ export async function run(): Promise<{
       .filter((id): id is string => !!id)
   );
 
-  // Fetch new posts (will stop when it reaches actualLastPostId if in incremental mode)
+  // Fetch new posts - continue until we have 100 new offers or posts run out
+  // In incremental mode, fetch a large number (or until posts run out) to ensure we get enough new offers
   try {
     for await (const post of getLatestPosts(
       actualLastPostId,
-      isIncremental ? 500 : 2000,
+      isIncremental ? 2000 : 2000, // Fetch up to 2000 posts (or until posts run out) to get 100 new offers
     )) {
+      // Note: We check for 100 new offers after parsing each post (see below)
+
       // Check quota before making API call
       if (apiCallCount >= MAX_DAILY_API_CALLS) {
         console.warn(
@@ -502,8 +507,21 @@ export async function run(): Promise<{
       }
 
       processedCount++;
+      newPostsProcessed++; // This is a new post we're processing
       lastFetchedPostId = post.id;
-      console.log(`[${processedCount}] Parsing "${post.title}" (ID: ${post.id})`);
+      
+      // Calculate current new offers count for display
+      const tempExistingKeys = new Set(
+        existingOffers.map(
+          (offer) =>
+            `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`,
+        ),
+      );
+      const tempNewOffers = newParsedOffers.filter((offer) => {
+        const key = `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`;
+        return !tempExistingKeys.has(key);
+      });
+      console.log(`[${newPostsProcessed}] Parsing "${post.title}" (ID: ${post.id}) - ${tempNewOffers.length}/${MAX_NEW_OFFERS} new offers so far`);
 
       if (post.vote_count < 0) {
         console.log(`  ⚠️  Skipping due to negative votes.`);
@@ -546,6 +564,27 @@ export async function run(): Promise<{
           );
           newParsedOffers.push(...offersWithMetadata);
           console.log(`  ✅ Found ${parsedOffers.length} offer(s)`);
+          
+          // Check if we've reached the target of 100 new offers (after deduplication)
+          if (isIncremental) {
+            const tempExistingKeys = new Set(
+              existingOffers.map(
+                (offer) =>
+                  `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`,
+              ),
+            );
+            const tempNewOffers = newParsedOffers.filter((offer) => {
+              const key = `${offer.company ?? 'null'}-${offer.role ?? 'null'}-${offer.total_offer ?? 'null'}-${offer.post_id ?? 'null'}`;
+              return !tempExistingKeys.has(key);
+            });
+            
+            if (tempNewOffers.length >= MAX_NEW_OFFERS) {
+              console.log(
+                `\n✅ Added ${tempNewOffers.length} new offers (target: ${MAX_NEW_OFFERS}). Stopping incremental fetch.`,
+              );
+              break;
+            }
+          }
         } else {
           console.log(`  ℹ️  No valid offers found`);
         }
@@ -611,9 +650,9 @@ export async function run(): Promise<{
   await saveData(allOffers, outputPath, metadataPath, lastFetchedPostId);
 
   console.log(`\n✅ Done!`);
-  console.log(`   Processed: ${processedCount} new posts`);
+  console.log(`   New posts processed: ${newPostsProcessed}`);
   console.log(`   Successful: ${successCount} posts with valid data`);
-  console.log(`   New offers: ${uniqueNewOffers.length}`);
+  console.log(`   New offers added: ${uniqueNewOffers.length}${isIncremental ? ` (target: ${MAX_NEW_OFFERS})` : ''}`);
   console.log(
     `   Total offers: ${allOffers.length} (${existingOffers.length} existing + ${uniqueNewOffers.length} new)`,
   );

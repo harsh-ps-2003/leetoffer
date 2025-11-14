@@ -35,9 +35,8 @@ export async function* getLatestPosts(
   const first = 50;
   const MAX_POSTS = maxPosts;
   let totalFetched = 0;
-  let foundLastPost = false;
 
-  while (totalFetched < MAX_POSTS && !foundLastPost) {
+  while (totalFetched < MAX_POSTS) {
     const query = {
       ...COMP_POSTS_DATA_QUERY,
       variables: {
@@ -72,23 +71,9 @@ export async function* getLatestPosts(
         break;
       }
 
-      // If we have a lastPostId, check if we've reached or passed it
-      // Posts are fetched in descending order (newest first), so when we encounter
-      // a post with ID <= lastPostId, we've reached posts we've already processed
-      if (lastPostId) {
-        const currentPostId = post.node.id;
-        const lastPostIdNum = parseInt(lastPostId, 10);
-        const currentPostIdNum = parseInt(currentPostId, 10);
-        
-        // If current post ID is less than or equal to lastPostId, we've caught up
-        if (currentPostIdNum <= lastPostIdNum) {
-          console.log(
-            `Reached last known post ID: ${lastPostId} (current: ${currentPostId}). Stopping incremental fetch.`,
-          );
-          foundLastPost = true;
-          break;
-        }
-      }
+      // Note: We don't stop at lastPostId here
+      // The main loop will skip already-processed posts and stop after processing 100 new posts
+      // This allows us to fetch posts and let the deduplication logic handle skipping
 
       try {
         const content = await getPostContent(parseInt(post.node.id, 10));
